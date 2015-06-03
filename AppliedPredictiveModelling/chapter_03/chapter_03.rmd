@@ -1,0 +1,87 @@
+---
+title: 'Applied Predictive Modelling : Chapter 3'
+output: pdf_document
+---
+Loading the required packages
+```{r}
+library(e1071)
+library(ggplot2)
+library(caret)
+library(plyr)
+```
+Loading the required data 
+```{r}
+load("/home/nitin/Downloads/AppliedPredictiveModeling/data/segmentationOriginal.RData")
+d = segmentationOriginal
+```
+
+Subsetting the Data
+```{r}
+segData <- subset(segmentationOriginal, Case == "Train")
+
+cellid <- segData$Cell
+class <- segData$Class
+case <- segData$Case
+
+segData <- segData[,-(1:3)]
+
+statusColNum <- grep("Status", names(segData))
+segData <- segData[,-statusColNum]
+```
+
+***Calculate skewness of data***
+```{r}
+skewness(segData$AngleCh1)
+# Compute skewness across all columns
+skewValues <- apply(segData, 2, skewness)
+```
+
+***Example, to Box–Cox transform, center, and scale the data, then execute PCA for signal extraction :***
+```{r}
+trans <- preProcess(segData, method = c("BoxCox", "center", "scale", "pca"))
+
+## Apply the above transformation to segData
+transformed <- predict(trans, segData)
+head(transformed[,1:5])
+```
+
+***Filter nearZero variance predictors***
+```{r}
+nearZeroVar(segData)
+```
+
+***Calculating correlation between predictors***
+```{r}
+correlations <- cor(segData)
+dim(correlations)
+correlations[1:4,1:4]
+```
+
+***Correlation plot***
+```{r}
+library(corrplot)
+corrplot(correlations, order = "hclust")
+```
+
+***Filtering based on correlations. (Predictors recommended for deletion)***
+```{r}
+highCorr <- findCorrelation(correlations, cutoff = 0.75)
+length(highCorr)
+filteredSegData <- segData[,-highCorr]
+names(filteredSegData)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

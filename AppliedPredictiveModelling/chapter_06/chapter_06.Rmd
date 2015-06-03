@@ -1,0 +1,91 @@
+---
+title: 'Applied Predictive Modelling : Chapter : 06'
+author: "Nitin Agarwal"
+date: "Wednesday 03 June 2015"
+output: html_document
+---
+
+***Loading the required packages***
+```{r}
+library(e1071)
+library(ggplot2)
+library(caret)
+library(plyr)
+library(pls)
+```
+
+***Loading the required data ***
+```{r}
+load("/home/nitin/Downloads/AppliedPredictiveModeling/data/solubility.RData")
+
+## The data objects begin with "sol"
+ls(pattern = "^solT")
+
+## Viewing random sample of column names 
+set.seed(2)
+sample(names(solTrainX), 8)
+```
+
+###Ordinary Linear Regression
+```{r}
+## Create a data frame with predictor and outcome
+trainingData <- solTrainXtrans
+## Add the solubility outcome
+trainingData$Solubility <- solTrainY
+```
+
+***Fit the linear regression model***
+```{r}
+lmFitAllPredictors <- lm(Solubility ~ ., data = trainingData)
+summary(lmFitAllPredictors)
+```
+
+***Predicting the values using the above model***
+```{r}
+lmPred1 <- predict(lmFitAllPredictors, solTestXtrans)
+head(lmPred1)
+```
+
+***Estimate performance using defaultSummary***
+```{r}
+lmValues1 <- data.frame(obs = solTestY, pred = lmPred1)
+defaultSummary(lmValues1)
+```
+
+***Plotting residuals, predicted values, observed values**
+```{r}
+xyplot(solTrainY ~ predict(lmFitAllPredictors),
+       type = c("p", "g"),
+       xlab = "Predicted", ylab = "Observed")
+
+xyplot(resid(lmFitAllPredictors) ~ predict(lmFitAllPredictors),
+       type = c("p", "g"),
+       xlab = "Predicted",  ylab = "Residuals")
+```
+
+***Removing the predictors with high correlation***
+```{r}
+corThresh <- 0.9
+tooHigh <- findCorrelation(cor(solTrainXtrans), corThresh)
+corrPred <- names(solTrainXtrans)[tooHigh]
+trainXfiltered <- solTrainXtrans[, -tooHigh]
+testXfiltered <- solTestXtrans[, -tooHigh]
+
+set.seed(100)
+
+ctrl <- trainControl(method = "cv", number = 10)
+lmFiltered <- train(trainXfiltered, solTrainY, method = "lm", trControl = ctrl)
+lmFiltered
+```
+
+### Partial Least Squares
+```{r}
+## Training step
+plsFit <- plsr(Solubility ~ ., data = trainingData)
+
+## Predicting for a specific number of components.
+predict(plsFit, solTestXtrans[1:5,], ncomp = 1:2)
+
+```
+
+

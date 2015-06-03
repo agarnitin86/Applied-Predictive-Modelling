@@ -1,0 +1,204 @@
+---
+title: 'Applied Predictive Modelling : Chapter 04'
+author: "Nitin Agarwal"
+date: "Tuesday 02 June 2015"
+output: html_document
+---
+***Loading the required packages***
+```{r}
+library(e1071)
+library(ggplot2)
+library(caret)
+library(plyr)
+```
+***Loading the required data ***
+```{r}
+load("/home/nitin/Downloads/AppliedPredictiveModeling/data/twoClassData.RData")
+d = predictors
+head(predictors)
+head(classes)
+str(predictors)
+str(classes)
+```
+
+***Create stratified random splits***
+```{r}
+## set random seed
+set.seed(1)
+trainingRows = createDataPartition(classes, p = 0.8, list=FALSE)
+head(trainingRows)
+```
+
+***Subset the data based on above indexes***
+```{r}
+trainPredictors = predictors[trainingRows,]
+trainClasses = classes[trainingRows]
+
+##Similarly create test set
+testPredictors <- predictors[-trainingRows,]
+testClasses <- classes[-trainingRows]
+str(trainPredictors)
+str(testPredictors)
+```
+
+###Resampling
+
+***Generating multiple splits from the data***
+```{r}
+set.seed(1)
+repeatedSplits <- createDataPartition(trainClasses, p = 0.8, times = 3)
+str(repeatedSplits)
+```
+
+***10-fold cross validation***
+```{r}
+cvSplits <- createFolds(trainClasses, k=10, returnTrain =  TRUE)
+str(cvSplits)
+fold1 <- cvSplits[[1]]
+```
+
+###Basic Model Building in R
+***Training knn3 ***
+```{r}
+## Using knn3 for 5-neares neighbours
+trainPredictors <- as.matrix(trainPredictors)
+knnFit <- knn3(x = trainPredictors, y = trainClasses, k = 5)
+knnFit
+```
+
+***Predicting using the trained model ***
+```{r}
+testPredictions <- predict(knnFit, newdata = testPredictors, type = "class")
+head(testPredictions)
+```
+
+###Determination of Tuning Paramters
+```{r}
+data(GermanCredit)
+
+## First, remove near-zero variance predictors then get rid of a few predictors 
+## that duplicate values. For example, there are two possible values for the 
+## housing variable: "Rent", "Own" and "ForFree". So that we don't have linear
+## dependencies, we get rid of one of the levels (e.g. "ForFree")
+
+GermanCredit <- GermanCredit[, -nearZeroVar(GermanCredit)]
+GermanCredit$CheckingAccountStatus.lt.0 <- NULL
+GermanCredit$SavingsAccountBonds.lt.100 <- NULL
+GermanCredit$EmploymentDuration.lt.1 <- NULL
+GermanCredit$EmploymentDuration.Unemployed <- NULL
+GermanCredit$Personal.Male.Married.Widowed <- NULL
+GermanCredit$Property.Unknown <- NULL
+GermanCredit$Housing.ForFree <- NULL
+
+## Split the data into training (80%) and test sets (20%)
+set.seed(100)
+inTrain <- createDataPartition(GermanCredit$Class, p = .8)[[1]]
+GermanCreditTrain <- GermanCredit[ inTrain, ]
+GermanCreditTest  <- GermanCredit[-inTrain, ]
+
+set.seed(1056)
+svmFit <- train(Class ~ ., data = GermanCreditTrain,
+                method = "svmRadial")
+```
+
+***Preprocessing the predictor data before training.***
+```{r}
+set.seed(1056)
+svmFit <- train(Class ~ ., data = GermanCreditTrain, method = "svmRadial", preProc = c("center", "scale"))
+```
+
+***Using tuneLength***
+```{r}
+set.seed(1056)
+svmFit <- train(Class ~ ., data = GermanCreditTrain,
+                method = "svmRadial",
+                preProc = c("center", "scale"),
+                tuneLength = 10)
+
+```
+
+***Using cross validation ***
+```{r}
+set.seed(1056)
+svmFit <- train(Class ~ ., 
+                data = GermanCreditTrain,
+                method = "svmRadial",
+                preProc = c("center",  "scale"),
+                tuneLength = 10,
+                trControl = trainControl(method = "repeatedcv",
+                                         repeats = 5))
+svmFit
+```
+
+***Predicting new samples with this model, the predict method is used : ***
+```{r}
+predictedClasses <- predict(svmFit, GermanCreditTest)
+str(predictedClasses)
+```
+
+***Getting the class probabilities***
+```{r}
+#predictedProbs = predict(svmFit, newdata = GermanCreditTest, type ='prob')
+```
+
+###Between-Model Comparisons
+***Training the glm model***
+```{r}
+set.seed(1056)
+logisticReg <- train(Class ~ ., data = GermanCreditTrain,
+                     method = "glm",
+                     trControl = trainControl(
+                                    method = "repeatedcv",
+                                    repeats = 5))
+logisticReg
+```
+
+***Comparing these two models (svm and logistic regression) based on their cross-validataion statistics, using resample function : ***
+```{r}
+resamp <- resamples(list(SVM = svmFit, Logistic = logisticReg))
+summary(resamp)
+```
+***Assess possible differences between the models***
+```{r}
+modelDifference <- diff(resamp)
+summary(modelDifference)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
